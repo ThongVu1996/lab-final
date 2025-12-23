@@ -1,0 +1,24 @@
+# charts/yorisoi-stack/templates/local-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv-auto  # Đặt tên mới cho nó sang
+  labels:
+    type: local
+spec:
+  storageClassName: "" # Để trống để khớp với PVC
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/mysql-pv" # K8s sẽ tự trỏ vào thư mục này trên node
+  # Quan trọng: Quy định PV này thuộc về Node nào (để tránh nó chạy lung tung sang node không có thư mục)
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-master-2 # <--- Điền tên Node mà bạn muốn chứa dữ liệu (Node đang chạy ổn định)
