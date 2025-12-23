@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-db
+data:
+  # Đổi đuôi file thành .sh để nó chạy dưới dạng script
+  init-permissions.sh: |
+    #!/bin/bash
+    set -e
+
+    # Lời nhắn: Đang chạy script cấp quyền...
+    echo "Running init-permissions.sh to grant remote access..."
+
+    # Dùng lệnh mysql client ngay trong container, đăng nhập bằng biến môi trường
+    # <<-EOSQL ... EOSQL: Là cú pháp để viết nhiều dòng SQL trong bash
+    mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<-EOSQL
+        -- Cấp quyền cho ROOT (Lấy pass từ biến môi trường)
+        CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+
+        -- Cấp quyền cho USER THƯỜNG (Lấy user/pass từ biến môi trường)
+        CREATE USER IF NOT EXISTS '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';
+        GRANT ALL PRIVILEGES ON *.* TO '$MYSQL_USER'@'%' WITH GRANT OPTION;
+
+        FLUSH PRIVILEGES;
+    EOSQL
+    
+    echo "Grant permissions finished!"
