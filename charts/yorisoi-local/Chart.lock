@@ -1,0 +1,6 @@
+dependencies:
+- name: yorisoi-stack
+  repository: file://../yorisoi-stack
+  version: 0.1.0
+digest: sha256:62e6010409892faf87f129ffdcc5895e821019dcf9fb8c4fb342b6be8b9f7899
+generated: "2025-12-23T18:22:17.638613+07:00"

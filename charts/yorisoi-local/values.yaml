@@ -1,5 +1,6 @@
 # Ghi đè cấu hình của chart cha
 yorisoi-stack:
+  existingSecret: "yorisoi-secret"
   backend:
     image:
       repository: harbor.local.thongdev.site/lab-final/backend
