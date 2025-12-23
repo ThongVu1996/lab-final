@@ -79,17 +79,28 @@ pipeline {
                     // 2.1 Build Frontend
                     // Chuyển vào thư mục chứa code Frontend vừa checkout
                     dir('frontend-src') {
-                        sh "docker build -t ${HARBOR_DOMAIN}/${HARBOR_PROJECT}/frontend:${BUILD_VERSION} ."
-                        sh "docker push ${HARBOR_DOMAIN}/${HARBOR_PROJECT}/frontend:${BUILD_VERSION}"
+                        // Tạo builder ảo nếu chưa có (để hỗ trợ build đa nền tảng)
+                        sh "docker buildx create --use || true"
+                        
+                        // Lệnh quan trọng: --platform linux/amd64
+                        // Lưu ý: Khi dùng buildx, ta dùng --push ngay trong lệnh build
+                        sh """
+                            docker buildx build --platform linux/amd64,linux/arm64 \
+                            -t ${HARBOR_DOMAIN}/${HARBOR_PROJECT}/frontend:${BUILD_VERSION} \
+                            --push .
+                        """
                     }
-
                     // 2.2 Build Backend
                     // Chuyển vào thư mục chứa code Backend vừa checkout
-                    dir('backend-src') { 
-                        sh "docker build -t ${HARBOR_DOMAIN}/${HARBOR_PROJECT}/backend:${BUILD_VERSION} ."
-                        sh "docker push ${HARBOR_DOMAIN}/${HARBOR_PROJECT}/backend:${BUILD_VERSION}"
+                    dir('backend-src') {
+                         sh "docker buildx create --use || true"
+                         
+                         sh """
+                            docker buildx build --platform linux/amd64,linux/arm64 \
+                            -t ${HARBOR_DOMAIN}/${HARBOR_PROJECT}/backend:${BUILD_VERSION} \
+                            --push .
+                        """
                     }
-                    
                     echo "✅ Đã đẩy Docker Images version: ${BUILD_VERSION}"
                 }
             }
