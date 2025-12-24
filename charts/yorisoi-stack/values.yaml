@@ -6,8 +6,8 @@ backend:
     repository: "" 
     tag: "latest"
   nginxImage:
-    repository: harbor.local.thongdev.site/lab-final/nginx-backend
-    tag: latest
+    repository: ""
+    tag: "latest"
   env:
     APP_ENV: "production"
     APP_DEBUG: "false"

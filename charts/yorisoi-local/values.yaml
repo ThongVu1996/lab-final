@@ -5,6 +5,9 @@ yorisoi-stack:
     image:
       repository: harbor.local.thongdev.site/lab-final/backend
       tag: "v1.0.0"
+    nginxImage:
+      repository: harbor.local.thongdev.site/lab-final/nginx-backend
+      tag: "v1.0.0"
     env:
       APP_ENV: "local"
       APP_DEBUG: "true"
