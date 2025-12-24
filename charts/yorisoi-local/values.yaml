@@ -17,8 +17,8 @@ yorisoi-stack:
       repository: harbor.local.thongdev.site/lab-final/frontend
       tag: "v1.0.0"
     env:
-      # Frontend gọi Backend qua /admin
-      API_URL: "/admin"
+      # Frontend gọi Backend qua /api 
+      API_URL: "/api "
 
   mysql:
     enabled: true  # <--- BẬT MySQL Local

@@ -14,7 +14,7 @@ yorisoi-stack:
       repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/frontend
       tag: "v1.0.0"
     env:
-      API_URL: "/admin"
+      API_URL: "/api "
 
   mysql:
     enabled: false # <--- TẮT MySQL (Dùng RDS)

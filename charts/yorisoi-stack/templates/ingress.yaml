@@ -10,8 +10,8 @@ spec:
   - host: {{ .Values.ingress.host }}
     http:
       paths:
-      # 1. Backend nhận /admin (Theo yêu cầu của bạn)
-      - path: /admin
+      # 1. Backend nhận /api  (Theo yêu cầu của bạn)
+      - path: /api 
         pathType: Prefix
         backend:
           service:
