@@ -3,7 +3,8 @@ backend:
   name: backend
   replicaCount: 1
   servicePort: 80
-  containerPort: 80
+  containerNginxPort: 80
+  containerPhpPort: 9000
   image:
     repository: "" 
     tag: "latest"

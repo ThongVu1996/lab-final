@@ -9,5 +9,5 @@ spec:
   ports:
     - name: http
       port: {{ .Values.backend.servicePort }}          # Cổng của Service (ClusterIP)
-      targetPort: {{ .Values.backend.containerPort }}    # Khớp với containerPort của Nginx trong Deployment
+      targetPort: {{ .Values.backend.containerNginxPort }}    # Khớp với containerPort của Nginx trong Deployment
       protocol: TCP
