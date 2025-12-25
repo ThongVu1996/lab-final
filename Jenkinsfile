@@ -1,289 +1,3 @@
-// pipeline {
-//     agent any
-//
-//     options {
-//         timestamps()
-//         disableConcurrentBuilds()
-//     }
-//
-//     environment {
-//         // ===============================
-//         // PIPELINE STATE
-//         // ===============================
-//         AWS_DEPLOY   = "false"
-//         BASE_CHANGED = "false"
-//
-//         // ===============================
-//         // REGISTRY
-//         // ===============================
-//         HARBOR_DOMAIN  = "harbor.local.thongdev.site"
-//         HARBOR_PROJECT = "lab-final"
-//         AWS_REGION     = "ap-southeast-1"
-//         ECR_DOMAIN     = "605695176329.dkr.ecr.ap-southeast-1.amazonaws.com"
-//
-//         // ===============================
-//         // IMAGES
-//         // ===============================
-//         IMG_BASE_HARBOR  = "${HARBOR_DOMAIN}/${HARBOR_PROJECT}/php-8.4-base"
-//         IMG_FE_HARBOR    = "${HARBOR_DOMAIN}/${HARBOR_PROJECT}/frontend"
-//         IMG_BE_HARBOR    = "${HARBOR_DOMAIN}/${HARBOR_PROJECT}/backend"
-//         IMG_NGINX_HARBOR = "${HARBOR_DOMAIN}/${HARBOR_PROJECT}/nginx-backend"
-//
-//         IMG_BASE_ECR  = "${ECR_DOMAIN}/${HARBOR_PROJECT}/php-8.4-base"
-//         IMG_FE_ECR    = "${ECR_DOMAIN}/${HARBOR_PROJECT}/frontend"
-//         IMG_BE_ECR    = "${ECR_DOMAIN}/${HARBOR_PROJECT}/backend"
-//         IMG_NGINX_ECR = "${ECR_DOMAIN}/${HARBOR_PROJECT}/nginx-backend"
-//
-//         // ===============================
-//         // GIT
-//         // ===============================
-//         GIT_FE_URL    = "https://gitlab.local.thongdev.site/tonylab/frontend.git"
-//         GIT_BE_URL    = "https://gitlab.local.thongdev.site/tonylab/backend.git"
-//         GIT_INFRA_URL = "https://github.com/ThongVu1996/lab-final.git"
-//
-//         // ===============================
-//         // VERSION
-//         // ===============================
-//         BUILD_VERSION = "v${BUILD_NUMBER}"
-//         CHART_VERSION = "0.1.${BUILD_NUMBER}"
-//
-//         // ===============================
-//         // CREDS
-//         // ===============================
-//         HARBOR_CREDS = "harbor-registry-creds"
-//         AWS_CREDS    = "aws-ecr-creds"
-//         GITLAB_CREDS = "gitlab-repository-creds"
-//         GITHUB_CREDS = "github-token-creds"
-//
-//         BUILDX_BUILDER = "yorisoi-builder"
-//         HELM_WORKDIR   = "helm_build_area"
-//     }
-//
-//     stages {
-//
-//         stage('01. Checkout') {
-//             steps {
-//                 cleanWs()
-//                 checkout scm
-//                 dir('frontend-src') {
-//                     git url: GIT_FE_URL, credentialsId: GITLAB_CREDS, branch: 'main'
-//                 }
-//                 dir('backend-src') {
-//                     git url: GIT_BE_URL, credentialsId: GITLAB_CREDS, branch: 'main'
-//                 }
-//                 dir('github-infra') {
-//                     git url: GIT_INFRA_URL, credentialsId: GITHUB_CREDS, branch: 'main'
-//                 }
-//             }
-//         }
-//
-//         stage('02. Login Registry & Buildx') {
-//             steps {
-//                 script {
-//                     withCredentials([
-//                         usernamePassword(credentialsId: HARBOR_CREDS, usernameVariable: 'H_USER', passwordVariable: 'H_PASS')
-//                     ]) {
-//                         sh 'echo $H_PASS | docker login ${HARBOR_DOMAIN} -u $H_USER --password-stdin'
-//                     }
-//
-//                     withCredentials([
-//                         usernamePassword(credentialsId: AWS_CREDS, usernameVariable: 'AWS_KEY', passwordVariable: 'AWS_SECRET')
-//                     ]) {
-//                         withEnv([
-//                             "AWS_ACCESS_KEY_ID=${AWS_KEY}",
-//                             "AWS_SECRET_ACCESS_KEY=${AWS_SECRET}",
-//                             "AWS_DEFAULT_REGION=${AWS_REGION}"
-//                         ]) {
-//                             sh 'aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_DOMAIN}'
-//                         }
-//                     }
-//
-//                     sh """
-//                       docker buildx inspect ${BUILDX_BUILDER} >/dev/null 2>&1 ||
-//                       docker buildx create --use --name ${BUILDX_BUILDER}
-//                     """
-//                 }
-//             }
-//         }
-//
-//         stage('03. Build Base (Local)') {
-//             when { changeset "docker/Dockerfile.base" }
-//             steps {
-//                 script {
-//                     env.BASE_CHANGED = "true"
-//                     env.AWS_DEPLOY = 'true'
-//                     echo "AWS_DEPLOY is ${AWS_DEPLOY}"
-//
-//                     sh """
-//                       docker buildx build --platform linux/amd64,linux/arm64 \
-//                       -f docker/Dockerfile.base \
-//                       -t ${IMG_BASE_HARBOR}:latest \
-//                       --push .
-//                     """
-//                 }
-//             }
-//         }
-//
-//         stage('04. Build Apps (Local)') {
-//             steps {
-//                 script {
-//                     dir('frontend-src') {
-//                         sh "docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG_FE_HARBOR}:${BUILD_VERSION} --push ."
-//                     }
-//
-//                     dir('backend-src') {
-//                         sh """
-//                           docker buildx build --platform linux/amd64,linux/arm64 \
-//                           --build-arg BASE_IMAGE_URL=${IMG_BASE_HARBOR}:latest \
-//                           -t ${IMG_BE_HARBOR}:${BUILD_VERSION} \
-//                           --push .
-//                         """
-//                         sh "docker buildx build --platform linux/amd64,linux/arm64 -f docker/nginx/Dockerfile -t ${IMG_NGINX_HARBOR}:${BUILD_VERSION} --push ."
-//                     }
-//                 }
-//             }
-//         }
-//
-//         stage('05. Helm Package (Local)') {
-//             steps {
-//                 script {
-//                     withCredentials([
-//                         usernamePassword(credentialsId: HARBOR_CREDS, usernameVariable: 'H_USER', passwordVariable: 'H_PASS')
-//                     ]) {
-//                         sh 'echo $H_PASS | helm registry login ${HARBOR_DOMAIN} -u $H_USER --password-stdin'
-//                     }
-//
-//                     sh """
-//                       rm -rf ${HELM_WORKDIR}
-//                       mkdir -p ${HELM_WORKDIR}
-//                       cp -r charts ${HELM_WORKDIR}/
-//                     """
-//
-//                     dir("${HELM_WORKDIR}/charts/yorisoi-local") {
-//                         sh "sed -i 's|tag: \".*\"|tag: \"${BUILD_VERSION}\"|' values.yaml"
-//                         sh "helm dependency update"
-//                         sh "helm package . --version ${CHART_VERSION} --app-version ${BUILD_VERSION}"
-//                         sh "helm push *.tgz oci://${HARBOR_DOMAIN}/${HARBOR_PROJECT}"
-//                     }
-//                 }
-//             }
-//         }
-//
-//         // ===============================
-//         // APPROVAL (INPUT TRẢ VỀ GIÁ TRỊ)
-//         // ===============================
-//         stage('06. Approval AWS') {
-//           steps {
-//               script {
-//                   echo "WAITING FOR AWS APPROVAL..."
-//
-//                   input(
-//                       message: "Deploy ${env.BUILD_VERSION} to AWS?",
-//                       ok: "Deploy"
-//                   )
-//
-//                   // Nếu tới được đây → user đã bấm Deploy
-//                   env.AWS_DEPLOY = "true"
-//
-//                   echo "AWS_DEPLOY = ${env.AWS_DEPLOY}"
-//               }
-//           }
-//         }
-//
-//         stage('07. Build Base (AWS)') {
-//             when {
-//                 allOf {
-//                     expression { env.AWS_DEPLOY == "true" }
-//                     expression { env.BASE_CHANGED == "true" }
-//                 }
-//             }
-//             steps {
-//                 sh """
-//                   docker buildx build --platform linux/amd64,linux/arm64 \
-//                   -f docker/Dockerfile.base \
-//                   -t ${IMG_BASE_ECR}:latest \
-//                   --push .
-//                 """
-//             }
-//         }
-//
-//         stage('08. Build Apps (AWS)') {
-//             when { expression { env.AWS_DEPLOY == "true" } }
-//             steps {
-//                 script {
-//                     dir('frontend-src') {
-//                         sh "docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG_FE_ECR}:${BUILD_VERSION} -t ${IMG_FE_ECR}:latest --push ."
-//                     }
-//                     dir('backend-src') {
-//                         sh """
-//                           docker buildx build --platform linux/amd64,linux/arm64 \
-//                           --build-arg BASE_IMAGE_URL=${IMG_BASE_ECR}:latest \
-//                           -t ${IMG_BE_ECR}:${BUILD_VERSION} -t ${IMG_BE_ECR}:latest \
-//                           --push .
-//                         """
-//                         sh "docker buildx build --platform linux/amd64,linux/arm64 -f docker/nginx/Dockerfile -t ${IMG_NGINX_ECR}:${BUILD_VERSION} -t ${IMG_NGINX_ECR}:latest --push ."
-//                     }
-//                 }
-//             }
-//         }
-//
-//         stage('09. GitOps (AWS)') {
-//             when { expression { env.AWS_DEPLOY == "true" } }
-//             steps {
-//                 script {
-//                     dir('github-infra/environments/aws') {
-//                         sh "sed -i 's|tag: \".*\"|tag: \"${BUILD_VERSION}\"|' values.yaml"
-//
-//                         withCredentials([
-//                             usernamePassword(credentialsId: GITHUB_CREDS, usernameVariable: 'U', passwordVariable: 'P')
-//                         ]) {
-//                             sh """
-//                               git add values.yaml
-//                               git commit -m 'chore(aws): deploy ${BUILD_VERSION} [skip ci]'
-//                               git push https://${U}:${P}@github.com/ThongVu1996/lab-final.git main
-//                             """
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//
-//     post {
-//         success {
-//             script {
-//                 if (env.AWS_DEPLOY == "true") {
-//                     echo "SUCCESS: Local + AWS deployment completed."
-//                 } else {
-//                     echo "SUCCESS: Local deployment only."
-//                 }
-//             }
-//         }
-//
-//         failure {
-//             script {
-//                 if (env.AWS_DEPLOY == "true") {
-//                     echo "FAILURE: Error during AWS deployment."
-//                 } else {
-//                     echo "FAILURE: Error during Local deployment."
-//                 }
-//             }
-//         }
-//
-//         aborted {
-//             echo "ABORTED: Pipeline was cancelled."
-//         }
-//
-//         always {
-//             script {
-//                 currentBuild.description = "AWS=${env.AWS_DEPLOY} | ${env.BUILD_VERSION}"
-//             }
-//         }
-//     }
-// }
-//
-
-
 // ===============================
 // 1. KHAI BÁO BIẾN GLOBAL (QUAN TRỌNG)
 // ===============================
@@ -478,45 +192,102 @@ pipeline {
             }
         }
 
-        stage('07. Build Base (AWS)') {
+        // stage('07. Build Base (AWS)') {
+        //     when {
+        //         allOf {
+        //             // Kiểm tra biến Global
+        //             expression { return isAwsDeploy }
+        //             expression { return isBaseChanged }
+        //         }
+        //     }
+        //     steps {
+        //         sh """
+        //           docker buildx build --platform linux/amd64,linux/arm64 \
+        //           -f docker/Dockerfile.base \
+        //           -t ${IMG_BASE_ECR}:latest \
+        //           --push .
+        //         """
+        //     }
+        // }
+        //
+        // stage('08. Build Apps (AWS)') {
+        //     // Kiểm tra biến Global
+        //     when { expression { return isAwsDeploy } }
+        //     steps {
+        //         script {
+        //             dir('frontend-src') {
+        //                 sh "docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG_FE_ECR}:${BUILD_VERSION} -t ${IMG_FE_ECR}:latest --push ."
+        //             }
+        //             dir('backend-src') {
+        //                 sh """
+        //                   docker buildx build --platform linux/amd64,linux/arm64 \
+        //                   --build-arg BASE_IMAGE_URL=${IMG_BASE_ECR}:latest \
+        //                   -t ${IMG_BE_ECR}:${BUILD_VERSION} -t ${IMG_BE_ECR}:latest \
+        //                   --push .
+        //                 """
+        //                 sh "docker buildx build --platform linux/amd64,linux/arm64 -f docker/nginx/Dockerfile -t ${IMG_NGINX_ECR}:${BUILD_VERSION} -t ${IMG_NGINX_ECR}:latest --push ."
+        //             }
+        //         }
+        //     }
+        // }
+          
+        stage('07. Push Base (AWS)') { // Đổi tên từ Build -> Push/Promote
             when {
                 allOf {
-                    // Kiểm tra biến Global
                     expression { return isAwsDeploy }
                     expression { return isBaseChanged }
                 }
             }
             steps {
-                sh """
-                  docker buildx build --platform linux/amd64,linux/arm64 \
-                  -f docker/Dockerfile.base \
-                  -t ${IMG_BASE_ECR}:latest \
-                  --push .
-                """
-            }
-        }
-
-        stage('08. Build Apps (AWS)') {
-            // Kiểm tra biến Global
-            when { expression { return isAwsDeploy } }
-            steps {
                 script {
-                    dir('frontend-src') {
-                        sh "docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG_FE_ECR}:${BUILD_VERSION} -t ${IMG_FE_ECR}:latest --push ."
-                    }
-                    dir('backend-src') {
-                        sh """
-                          docker buildx build --platform linux/amd64,linux/arm64 \
-                          --build-arg BASE_IMAGE_URL=${IMG_BASE_ECR}:latest \
-                          -t ${IMG_BE_ECR}:${BUILD_VERSION} -t ${IMG_BE_ECR}:latest \
-                          --push .
-                        """
-                        sh "docker buildx build --platform linux/amd64,linux/arm64 -f docker/nginx/Dockerfile -t ${IMG_NGINX_ECR}:${BUILD_VERSION} -t ${IMG_NGINX_ECR}:latest --push ."
-                    }
+                    echo "🚀 Promoting Base Image from Harbor to ECR..."
+                    
+                    // Lệnh này copy toàn bộ manifest (cả arm64 và amd64) cực nhanh
+                    sh """
+                        docker buildx imagetools create \
+                        --tag ${IMG_BASE_ECR}:latest \
+                        ${IMG_BASE_HARBOR}:latest
+                    """
                 }
             }
         }
 
+        stage('08. Push Apps (AWS)') { // Đổi tên từ Build -> Push/Promote
+            when { expression { return isAwsDeploy } }
+            steps {
+                script {
+                    echo "🚀 Promoting App Images from Harbor to ECR..."
+                    
+                    // 1. Frontend
+                    sh """
+                        docker buildx imagetools create \
+                        --tag ${IMG_FE_ECR}:${BUILD_VERSION} \
+                        --tag ${IMG_FE_ECR}:latest \
+                        ${IMG_FE_HARBOR}:${BUILD_VERSION}
+                    """
+
+                    // 2. Backend
+                    // Lưu ý: Backend Local đã được build dựa trên Base Harbor. 
+                    // Copy sang ECR vẫn chạy tốt vì layers đã được đóng gói bên trong.
+                    sh """
+                        docker buildx imagetools create \
+                        --tag ${IMG_BE_ECR}:${BUILD_VERSION} \
+                        --tag ${IMG_BE_ECR}:latest \
+                        ${IMG_BE_HARBOR}:${BUILD_VERSION}
+                    """
+
+                    // 3. Nginx
+                    sh """
+                        docker buildx imagetools create \
+                        --tag ${IMG_NGINX_ECR}:${BUILD_VERSION} \
+                        --tag ${IMG_NGINX_ECR}:latest \
+                        ${IMG_NGINX_HARBOR}:${BUILD_VERSION}
+                    """
+                    
+                    echo "✅ All Images promoted to AWS ECR successfully!"
+                }
+            }
+        }
         stage('09. GitOps (AWS)') {
             // Kiểm tra biến Global
             when { expression { return isAwsDeploy } }
