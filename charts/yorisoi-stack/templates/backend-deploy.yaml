@@ -13,28 +13,25 @@ spec:
         app: {{ .Values.backend.name }}
     spec:
       containers:
-        # --- 1. CONTAINER NGINX (Cổng chính - Đón khách) ---
+        # --- 1. CONTAINER NGINX (Port 80) ---
         - name: nginx
           image: "{{ .Values.backend.nginxImage.repository }}:{{ .Values.backend.nginxImage.tag }}"
           imagePullPolicy: Always
           ports:
-            # Nginx mở cổng 80 để nhận request từ Service/Ingress
             - containerPort: {{ .Values.backend.containerNginxPort }} 
           lifecycle:
             preStop:
               exec:
                 command: ["/bin/sh","-c","sleep 5; nginx -s quit"]
 
-        # --- 2. CONTAINER BACKEND (PHP-FPM - Xử lý ngầm) ---
+        # --- 2. CONTAINER BACKEND (Port 9000) ---
         - name: backend
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
           imagePullPolicy: Always
           ports:
-            # QUAN TRỌNG: PHP-FPM chạy port 9000. 
-            # Không dùng biến {{ .Values... }} ở đây vì biến đó là 80 (dành cho Nginx).
             - containerPort: {{ .Values.backend.containerPhpPort }}
           env:
-            # --- Config Environment ---
+            # --- Config Environment (Đã check kỹ cú pháp) ---
             - name: APP_ENV
               value: {{ .Values.backend.env.APP_ENV | quote }}
             - name: APP_DEBUG
@@ -44,7 +41,7 @@ spec:
             - name: DB_HOST
               value: {{ .Values.backend.env.DB_HOST | quote }}
             
-            # --- Secrets (Password/Key) ---
+            # --- Secrets ---
             - name: APP_KEY
               valueFrom:
                 secretKeyRef:

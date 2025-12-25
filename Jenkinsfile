@@ -249,7 +249,6 @@ pipeline {
                 script {
                     // Đứng ở root repo (github-infra) để thao tác toàn cục
                     dir('github-infra') {
-                        
                         // 1. Update tag
                         sh "sed -i 's|tag: \".*\"|tag: \"${BUILD_VERSION}\"|' environments/aws/values.yaml"
 
@@ -272,7 +271,9 @@ pipeline {
                                 # 4. Commit & Push
                                 if ! git diff-index --quiet HEAD; then
                                     git commit -m 'chore(aws): deploy ${BUILD_VERSION} & cleanup [skip ci]'
-                                    git push https://\${U}:\${P}@github.com/ThongVu1996/lab-final.git main
+                                    git remote rm origin
+                                    git remote add origin git@github.com:ThongVu1996/lab-final.git
+                                    git push -f https://\${U}:\${P}@github.com/ThongVu1996/lab-final.git main
                                 else
                                     echo "Nothing to commit"
                                 fi
