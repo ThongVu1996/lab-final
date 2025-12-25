@@ -4,10 +4,10 @@ yorisoi-stack:
     replicaCount: 1
     image:
       repository: 605695176329.dkr.ecr.ap-southeast-1.amazonaws.com/lab-final/backend
-      tag: "v1.0.0"
+      tag: "v99"
     nginxImage:
       repository: 605695176329.dkr.ecr.ap-southeast-1.amazonaws.com/lab-final/nginx-backend
-      tag: "v1.0.0"
+      tag: "v99"
     env:
       APP_ENV: "production"
       APP_URL: "https://dr.thongdev.site"
@@ -17,7 +17,7 @@ yorisoi-stack:
     replicaCount: 1
     image:
       repository: 605695176329.dkr.ecr.ap-southeast-1.amazonaws.com/lab-final/frontend
-      tag: "v1.0.0"
+      tag: "v99"
     env:
       API_URL: "/api "
 
