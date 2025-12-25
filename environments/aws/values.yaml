@@ -1,7 +1,7 @@
 yorisoi-stack:
   existingSecret: "yorisoi-secret"
   backend:
-    replicaCount: 1
+    replicaCount: 0
     image:
       repository: 605695176329.dkr.ecr.ap-southeast-1.amazonaws.com/lab-final/backend
       tag: "v1.0.0"
@@ -14,6 +14,7 @@ yorisoi-stack:
       DB_HOST: "lab-final-db.cn46i6qw2flt.ap-southeast-1.rds.amazonaws.com"
 
   frontend:
+    replicaCount: 0
     image:
       repository: 605695176329.dkr.ecr.ap-southeast-1.amazonaws.com/lab-final/frontend
       tag: "v1.0.0"
